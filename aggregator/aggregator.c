@@ -15,15 +15,18 @@ unsigned int MEASUREMENTS_PER_SECOND = 2;
 float LOW_ACTIVITY_THRESHOLD = 1000.00;
 float HIGH_ACTIVITY_THRESHOLD = 3000.00;
 
+// Used for extracting integer part of the float
 long extractInteger(float f) {
     return ((long) f);
 }
 
+// Used to extract the fraction part of the float
 unsigned int extractFraction(float f) {
     int fractionPart = (int) 1000 * (f - extractInteger(f));
     return (abs(fractionPart));
 }
 
+// Calculates square root
 float sRoot(float number) {
     float difference = 0.0;
     float error = 0.001;  // error tolerance
@@ -43,6 +46,7 @@ float sRoot(float number) {
  * All required helper methods included
  */
 
+// FIFO que structure definition
 struct FIFOQueue {
     unsigned int capacity;
     int size;
@@ -50,6 +54,7 @@ struct FIFOQueue {
     float el[12];
 };
 
+// Light data access object definition
 struct FIFOQueue lightDao = {
         12,
         0,
@@ -57,6 +62,7 @@ struct FIFOQueue lightDao = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
+// Enqueues light measurements and automatically dequeues the first reading
 void queueLightMeasurement(float item) {
     int x;
     for (x=(lightDao.last - 1); x >= 0; x--) {
@@ -68,6 +74,7 @@ void queueLightMeasurement(float item) {
         lightDao.size = lightDao.size + 1;
 }
 
+// Prints elements in the FIFO buffer
 void printElements(struct FIFOQueue dao) {
     int i;
     printf("B = [");
@@ -80,6 +87,7 @@ void printElements(struct FIFOQueue dao) {
     printf("]\n");
 }
 
+// Prints log on high-activity level
 void printHighActivityResults(struct FIFOQueue dao) {
     int i;
     printf("Aggregation = None [ High Activity ]\n");
@@ -93,6 +101,7 @@ void printHighActivityResults(struct FIFOQueue dao) {
     printf("]\n\n");
 }
 
+// Prints log on medium-activity level
 void printMediumActivityResults(struct FIFOQueue dao) {
     float results[3];
     results[0] = (dao.el[0] + dao.el[1] + dao.el[2] + dao.el[3]) / 4.0;
@@ -111,6 +120,7 @@ void printMediumActivityResults(struct FIFOQueue dao) {
     printf("]\n\n");
 }
 
+// Prints log on low-activity level
 void printLowActivityResults(struct FIFOQueue dao) {
     int i;
     float sum = 0.0;
@@ -122,6 +132,7 @@ void printLowActivityResults(struct FIFOQueue dao) {
     printf("X = [ %ld.%03u ]\n\n", extractInteger(result), extractFraction(result));
 }
 
+// Calculates standard deviation of the population
 float calculateStandardDeviation(struct FIFOQueue dao) {
     float sum = 0.0, mean, squareRootableValue, sumOfSquares = 0.0;
     int i;
@@ -140,6 +151,8 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
  * Implementation of Sensors
  * Relevant conversion functions for skymote
  */
+
+// Transfer function for reading light sensor
 float getLight(void) {
     float V_sensor = 1.5 * light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC)/4096;
     float I = V_sensor/100000;
@@ -168,10 +181,13 @@ PROCESS_THREAD(aggregator, ev, data) {
         float light_lx = getLight();
         float activity;
         queueLightMeasurement(light_lx);
+        // Start aggregating the data only after 12 readings are collected
+        // K = 1; Aggregation is performed on each element being added to the FIFO queue
         if ((lightDao.size + 1) >= lightDao.capacity) {
             printElements(lightDao);
             activity = calculateStandardDeviation(lightDao);
             printf("StdDev = %ld.%03u\n", extractInteger(activity), extractFraction(activity));
+            // Perform aggregation based on activity level
             if (activity <= LOW_ACTIVITY_THRESHOLD) {
                 printLowActivityResults(lightDao);
             } else if (activity > HIGH_ACTIVITY_THRESHOLD) {
