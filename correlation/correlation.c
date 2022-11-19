@@ -153,7 +153,26 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
 }
 
 float calculateCorrelationBetweenLightAndTemperature(struct FIFOQueue lightDao, struct FIFOQueue tempDao) {
-    return(0.234);
+    int i;
+    unsigned int capacity = lightDao.capacity;
+    float sx, sy, mx, my, n, d, xx_sum, yy_sum, r;
+    for(i=0; i < capacity; i++) {
+        sx += lightDao.el[i];
+        sy += tempDao.el[i];
+    }
+    mx = sx / capacity;
+    my = sy / capacity;
+
+    for(i=0; i < capacity; i++) {
+        float xm_unit = lightDao.el[i] - mx;
+        float ym_unit = tempDao.el[i] - my;
+        n += xm_unit * ym_unit;
+        xx_sum += (xm_unit * xm_unit);
+        yy_sum += (ym_unit * ym_unit);
+    }
+    d = xx_sum * yy_sum;
+    r = n / sRoot(d);
+    return(r);
 }
 
 /*

@@ -63,13 +63,14 @@ void queueLightMeasurement(float item) {
         lightDao.el[x + 1] = lightDao.el[x];
     }
     lightDao.el[0] = item;
+    printf("reading = %ld.%03u\n", extractInteger(item), extractFraction(item));
     if (lightDao.size < (lightDao.capacity - 1))
         lightDao.size = lightDao.size + 1;
 }
 
 void printElements(struct FIFOQueue dao) {
     int i;
-    printf("\nB = [");
+    printf("B = [");
     for (i=0; i <= dao.last; i++){
         printf("%ld.%03u", extractInteger(dao.el[i]), extractFraction(dao.el[i]));
         if (i != dao.last) {
@@ -89,7 +90,7 @@ void printHighActivityResults(struct FIFOQueue dao) {
             printf(", ");
         }
     }
-    printf("]\n");
+    printf("]\n\n");
 }
 
 void printMediumActivityResults(struct FIFOQueue dao) {
@@ -107,7 +108,7 @@ void printMediumActivityResults(struct FIFOQueue dao) {
             printf(", ");
         }
     }
-    printf("]\n");
+    printf("]\n\n");
 }
 
 void printLowActivityResults(struct FIFOQueue dao) {
@@ -118,7 +119,7 @@ void printLowActivityResults(struct FIFOQueue dao) {
     }
     float result = sum / (float)dao.capacity;
     printf("Aggregation = 12-into-1 [ Low Activity ]\n");
-    printf("X = [ %ld.%03u ]\n", extractInteger(result), extractFraction(result));
+    printf("X = [ %ld.%03u ]\n\n", extractInteger(result), extractFraction(result));
 }
 
 float calculateStandardDeviation(struct FIFOQueue dao) {
@@ -159,14 +160,16 @@ PROCESS_THREAD(aggregator, ev, data) {
 
     SENSORS_ACTIVATE(light_sensor);
 
+    printf("K Value = %d\n\n", 1);
+
     while(1) {
         PROCESS_WAIT_EVENT_UNTIL(ev=PROCESS_EVENT_TIMER);
 
         float light_lx = getLight();
         float activity;
         queueLightMeasurement(light_lx);
-        printElements(lightDao);
         if ((lightDao.size + 1) >= lightDao.capacity) {
+            printElements(lightDao);
             activity = calculateStandardDeviation(lightDao);
             printf("StdDev = %ld.%03u\n", extractInteger(activity), extractFraction(activity));
             if (activity <= LOW_ACTIVITY_THRESHOLD) {
