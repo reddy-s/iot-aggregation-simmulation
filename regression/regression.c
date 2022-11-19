@@ -167,8 +167,7 @@ float getLight(void) {
     return light_lx;
 }
 
-float getTemperature(void)
-{
+float getTemperature(void) {
     int   tempADC = sht11_sensor.value(SHT11_SENSOR_TEMP_SKYSIM);
     float temp = 0.04*tempADC-39.6;
     return temp;

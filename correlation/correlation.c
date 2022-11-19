@@ -155,24 +155,47 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
 float calculateCorrelationBetweenLightAndTemperature(struct FIFOQueue lightDao, struct FIFOQueue tempDao) {
     int i;
     unsigned int capacity = lightDao.capacity;
-    float sx, sy, mx, my, n, d, xx_sum, yy_sum, r;
+    float x, y, xy, xx, yy, n, d, r;
     for(i=0; i < capacity; i++) {
-        sx += lightDao.el[i];
-        sy += tempDao.el[i];
+        x += lightDao.el[i];
+        y += tempDao.el[i];
+        xy += (lightDao.el[i] * tempDao.el[i]);
+        xx += (lightDao.el[i] * lightDao.el[i]);
+        yy += (tempDao.el[i] * tempDao.el[i]);
     }
-    mx = sx / capacity;
-    my = sy / capacity;
-
-    for(i=0; i < capacity; i++) {
-        float xm_unit = lightDao.el[i] - mx;
-        float ym_unit = tempDao.el[i] - my;
-        n += xm_unit * ym_unit;
-        xx_sum += (xm_unit * xm_unit);
-        yy_sum += (ym_unit * ym_unit);
-    }
-    d = xx_sum * yy_sum;
+    n = (capacity * xy) - (x * y);
+    d = ((capacity * xx) - (x * x)) * ((capacity * yy) - (y * y));
     r = n / sRoot(d);
     return(r);
+}
+
+float autoCorrelation(struct FIFOQueue dao, int k) {
+    int i;
+    unsigned int capacity = dao.capacity;
+    float sum, sumOfXBar, variance, mean, r_1, dotProduct;
+    float xBar[12] = {0,0,0,0,0,0,0,0,0,0,0,0};
+    float kBar[11] = {0,0,0,0,0,0,0,0,0,0,0};
+    for (i = 0; i < capacity; ++i) {
+        sum += dao.el[i];
+    }
+    mean = sum / (float)dao.capacity;
+
+    for(i=0; i < capacity; i++) {
+        xBar[i] = (dao.el[i] - mean);
+        sumOfXBar += (xBar[i] * xBar[i]);
+    }
+    variance = sumOfXBar / capacity;
+
+    for(i=1; i < capacity; i++) {
+        kBar[i-1] = xBar[i];
+    }
+
+    for(i=0; i < (capacity - 1); i++) {
+        dotProduct += (xBar[i] * kBar[i]);
+    }
+
+    r_1 = dotProduct / ((capacity - k) * variance);
+    return(r_1);
 }
 
 /*
@@ -186,8 +209,7 @@ float getLight(void) {
     return light_lx;
 }
 
-float getTemperature(void)
-{
+float getTemperature(void) {
     int   tempADC = sht11_sensor.value(SHT11_SENSOR_TEMP_SKYSIM);
     float temp = 0.04*tempADC-39.6;
     return temp;
@@ -202,7 +224,7 @@ PROCESS_THREAD(correlation, ev, data) {
     static struct etimer timer;
     PROCESS_BEGIN();
 
-    etimer_set(&timer, CLOCK_CONF_SECOND * MEASUREMENTS_PER_SECOND);
+    etimer_set(&timer, CLOCK_CONF_SECOND / MEASUREMENTS_PER_SECOND);
 
     SENSORS_ACTIVATE(light_sensor);
     SENSORS_ACTIVATE(sht11_sensor);
@@ -212,7 +234,7 @@ PROCESS_THREAD(correlation, ev, data) {
 
         float light_lx = getLight();
         float temp = getTemperature();
-        float activity, lightAndTempCorrelation;
+        float activity, lightAndTempCorrelation, autoCorrelationForLightWithK1, autoCorrelationForTempWithK1;
         queueLightMeasurement(light_lx);
         queueTempMeasurement(temp);
         printElements(lightDao, 'L');
@@ -228,7 +250,11 @@ PROCESS_THREAD(correlation, ev, data) {
                 printMediumActivityResults(lightDao);
             }
             lightAndTempCorrelation = calculateCorrelationBetweenLightAndTemperature(lightDao, tempDao);
-            printf("Correlation = %ld.%03u\n\n", extractInteger(lightAndTempCorrelation), extractFraction(lightAndTempCorrelation));
+            printf("Correlation between light and temp = %ld.%03u\n", extractInteger(lightAndTempCorrelation), extractFraction(lightAndTempCorrelation));
+            autoCorrelationForLightWithK1 = autoCorrelation(lightDao, 1);
+            printf("Auto Correlation for light with K as 1 = %ld.%03u\n", extractInteger(autoCorrelationForLightWithK1), extractFraction(autoCorrelationForLightWithK1));
+            autoCorrelationForTempWithK1 = autoCorrelation(tempDao, 1);
+            printf("Auto Correlation for temp with K as 1 = %ld.%03u\n\n", extractInteger(autoCorrelationForTempWithK1), extractFraction(autoCorrelationForTempWithK1));
         }
         etimer_reset(&timer);
     }
