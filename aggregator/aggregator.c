@@ -2,7 +2,6 @@
 
 #include <stdio.h>
 #include <stdlib.h>
-#include <math.h>
 #include <random.h>
 
 #include "dev/light-sensor.h"
@@ -23,6 +22,20 @@ long extractInteger(float f) {
 unsigned int extractFraction(float f) {
     int fractionPart = (int) 1000 * (f - extractInteger(f));
     return (abs(fractionPart));
+}
+
+float sRoot(float number) {
+    float difference = 0.0;
+    float error = 0.001;  // error tolerance
+    float x = 10.0;       // initial guess
+    int   i;
+    for (i=0; i<50; i++) {
+        x = 0.5 * (x + number/x);
+        difference = x*x - number;
+        if (difference<0) difference = -difference;
+        if (difference<error) break; // the difference is deemed small enough
+    }
+    return x;
 }
 
 /*
@@ -68,7 +81,7 @@ void printElements(struct FIFOQueue dao) {
 
 void printHighActivityResults(struct FIFOQueue dao) {
     int i;
-    printf("Aggregation = None [High Activity]\n");
+    printf("Aggregation = None [ High Activity ]\n");
     printf("X = [");
     for (i=0; i <= dao.last; i++){
         printf("%ld.%03u", extractInteger(dao.el[i]), extractFraction(dao.el[i]));
@@ -86,7 +99,7 @@ void printMediumActivityResults(struct FIFOQueue dao) {
     results[2] = (dao.el[8] + dao.el[9] + dao.el[10] + dao.el[11]) / 4.0;
 
     int i;
-    printf("Aggregation = 4-into-1 [Medium Activity]\n");
+    printf("Aggregation = 4-into-1 [ Medium Activity ]\n");
     printf("X = [");
     for (i=0; i < 3; i++){
         printf("%ld.%03u", extractInteger(results[i]), extractFraction(results[i]));
@@ -104,7 +117,7 @@ void printLowActivityResults(struct FIFOQueue dao) {
         sum += dao.el[i];
     }
     float result = sum / (float)dao.capacity;
-    printf("Aggregation = 12-into-1 [Low Activity]\n");
+    printf("Aggregation = 12-into-1 [ Low Activity ]\n");
     printf("X = [ %ld.%03u ]\n", extractInteger(result), extractFraction(result));
 }
 
@@ -116,10 +129,10 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
     }
     mean = sum / (float)dao.capacity;
     for (i = 0; i < dao.capacity; ++i) {
-        sumOfSquares += pow(dao.el[i] - mean, 2)
+        sumOfSquares += (dao.el[i] - mean) * (dao.el[i] - mean);
     }
     squareRootableValue = sumOfSquares / dao.capacity;
-    return sqrt(squareRootableValue);
+    return sRoot(squareRootableValue);
 }
 
 /*

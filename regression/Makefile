@@ -1,7 +1,5 @@
-CONTIKI_PROJECT = regression
+CONTIKI_PROJECT = regressions
 all: $(CONTIKI_PROJECT)
-
-CUSTOM_RULE_LINK=1
 
 CONTIKI = ../..
 include $(CONTIKI)/Makefile.include
