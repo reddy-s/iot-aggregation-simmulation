@@ -126,12 +126,6 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
  * Implementation of Sensors
  * Relevant conversion functions for skymote
  */
-float getTemperature(void) {
-    int   tempADC = sht11_sensor.value(SHT11_SENSOR_TEMP_SKYSIM);
-    float temp = 0.04*tempADC-39.6;
-    return temp;
-}
-
 float getLight(void) {
     float V_sensor = 1.5 * light_sensor.value(LIGHT_SENSOR_PHOTOSYNTHETIC)/4096;
     float I = V_sensor/100000;
