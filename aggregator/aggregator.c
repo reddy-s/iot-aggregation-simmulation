@@ -158,7 +158,6 @@ PROCESS_THREAD(aggregator, ev, data) {
     etimer_set(&timer, CLOCK_CONF_SECOND / MEASUREMENTS_PER_SECOND);
 
     SENSORS_ACTIVATE(light_sensor);
-    SENSORS_ACTIVATE(sht11_sensor);
 
     while(1) {
         PROCESS_WAIT_EVENT_UNTIL(ev=PROCESS_EVENT_TIMER);

@@ -57,6 +57,13 @@ struct FIFOQueue lightDao = {
         { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
 };
 
+struct FIFOQueue tempDao = {
+        12,
+        0,
+        11,
+        { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+};
+
 void queueLightMeasurement(float item) {
     int x;
     for (x=(lightDao.last - 1); x >= 0; x--) {
@@ -67,9 +74,19 @@ void queueLightMeasurement(float item) {
         lightDao.size = lightDao.size + 1;
 }
 
-void printElements(struct FIFOQueue dao) {
+void queueTempMeasurement(float item) {
+    int x;
+    for (x=(tempDao.last - 1); x >= 0; x--) {
+        tempDao.el[x + 1] = tempDao.el[x];
+    }
+    tempDao.el[0] = item;
+    if (tempDao.size < (tempDao.capacity - 1))
+        tempDao.size = tempDao.size + 1;
+}
+
+void printElements(struct FIFOQueue dao, char dataType) {
     int i;
-    printf("\nB = [");
+    printf("%c = [", dataType);
     for (i=0; i <= dao.last; i++){
         printf("%ld.%03u", extractInteger(dao.el[i]), extractFraction(dao.el[i]));
         if (i != dao.last) {
@@ -81,7 +98,7 @@ void printElements(struct FIFOQueue dao) {
 
 void printHighActivityResults(struct FIFOQueue dao) {
     int i;
-    printf("Aggregation = None [ High Activity ]\n");
+    printf("Light Readings Aggregation = None [ High Activity ]\n");
     printf("X = [");
     for (i=0; i <= dao.last; i++){
         printf("%ld.%03u", extractInteger(dao.el[i]), extractFraction(dao.el[i]));
@@ -99,7 +116,7 @@ void printMediumActivityResults(struct FIFOQueue dao) {
     results[2] = (dao.el[8] + dao.el[9] + dao.el[10] + dao.el[11]) / 4.0;
 
     int i;
-    printf("Aggregation = 4-into-1 [ Medium Activity ]\n");
+    printf("Light Readings Aggregation = 4-into-1 [ Medium Activity ]\n");
     printf("X = [");
     for (i=0; i < 3; i++){
         printf("%ld.%03u", extractInteger(results[i]), extractFraction(results[i]));
@@ -117,7 +134,7 @@ void printLowActivityResults(struct FIFOQueue dao) {
         sum += dao.el[i];
     }
     float result = sum / (float)dao.capacity;
-    printf("Aggregation = 12-into-1 [ Low Activity ]\n");
+    printf("Light Readings Aggregation = 12-into-1 [ Low Activity ]\n");
     printf("X = [ %ld.%03u ]\n", extractInteger(result), extractFraction(result));
 }
 
@@ -135,6 +152,10 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
     return sRoot(squareRootableValue);
 }
 
+float calculateCorrelationBetweenLightAndTemperature(struct FIFOQueue lightDao, struct FIFOQueue tempDao) {
+    return(0.234);
+}
+
 /*
  * Implementation of Sensors
  * Relevant conversion functions for skymote
@@ -146,6 +167,13 @@ float getLight(void) {
     return light_lx;
 }
 
+float getTemperature(void)
+{
+    int   tempADC = sht11_sensor.value(SHT11_SENSOR_TEMP_SKYSIM);
+    float temp = 0.04*tempADC-39.6;
+    return temp;
+}
+
 /* ===========================================================
                            Execution
  ============================================================= */
@@ -155,7 +183,7 @@ PROCESS_THREAD(correlation, ev, data) {
     static struct etimer timer;
     PROCESS_BEGIN();
 
-    etimer_set(&timer, CLOCK_CONF_SECOND / MEASUREMENTS_PER_SECOND);
+    etimer_set(&timer, CLOCK_CONF_SECOND * MEASUREMENTS_PER_SECOND);
 
     SENSORS_ACTIVATE(light_sensor);
     SENSORS_ACTIVATE(sht11_sensor);
@@ -164,12 +192,15 @@ PROCESS_THREAD(correlation, ev, data) {
         PROCESS_WAIT_EVENT_UNTIL(ev=PROCESS_EVENT_TIMER);
 
         float light_lx = getLight();
-        float activity;
+        float temp = getTemperature();
+        float activity, lightAndTempCorrelation;
         queueLightMeasurement(light_lx);
-        printElements(lightDao);
+        queueTempMeasurement(temp);
+        printElements(lightDao, 'L');
+        printElements(tempDao, 'T');
         if ((lightDao.size + 1) >= lightDao.capacity) {
             activity = calculateStandardDeviation(lightDao);
-            printf("StdDev = %ld.%03u\n", extractInteger(activity), extractFraction(activity));
+            printf("Light Readings StdDev = %ld.%03u\n", extractInteger(activity), extractFraction(activity));
             if (activity <= LOW_ACTIVITY_THRESHOLD) {
                 printLowActivityResults(lightDao);
             } else if (activity > HIGH_ACTIVITY_THRESHOLD) {
@@ -177,6 +208,8 @@ PROCESS_THREAD(correlation, ev, data) {
             } else {
                 printMediumActivityResults(lightDao);
             }
+            lightAndTempCorrelation = calculateCorrelationBetweenLightAndTemperature(lightDao, tempDao);
+            printf("Correlation = %ld.%03u\n\n", extractInteger(lightAndTempCorrelation), extractFraction(lightAndTempCorrelation));
         }
         etimer_reset(&timer);
     }
