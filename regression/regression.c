@@ -153,7 +153,27 @@ float calculateStandardDeviation(struct FIFOQueue dao) {
 }
 
 void calculateRegressionBetweenLightAndTemperature(struct FIFOQueue lightDao, struct FIFOQueue tempDao) {
-    printf("Regression Equation: t = %ld.%03u + l12.8\n\n", extractInteger(10.8), extractFraction(10.8));
+    int i;
+    unsigned int capacity = lightDao.capacity;
+    float x, y, xy, xx, yy, slope, y_intercept, sumofSquaredError, mse;
+    for(i=0; i < capacity; i++) {
+        x += lightDao.el[i];
+        y += tempDao.el[i];
+        xy += (lightDao.el[i] * tempDao.el[i]);
+        xx += (lightDao.el[i] * lightDao.el[i]);
+        yy += (tempDao.el[i] * tempDao.el[i]);
+    }
+
+    y_intercept = ((y * xx) - (x * xy)) / ((capacity * xx) - (x * x));
+    slope = ((capacity * xy) - (x * y)) / ((capacity * xx) - (x * x));
+    printf("Regression Equation: temp = %ld.%03u + light * %ld.%03u\n", extractInteger(y_intercept), extractFraction(y_intercept), extractInteger(slope), extractFraction(slope));
+
+    for(i=0; i < capacity; i++) {
+        float e = (y_intercept + (lightDao.el[i] * slope)) - tempDao.el[i];
+        sumofSquaredError += (e * e);
+    }
+    mse = sumofSquaredError / capacity;
+    printf("Mean Squared Error = %ld.%03u \n\n", extractInteger(mse), extractFraction(mse));
 }
 
 /*
@@ -182,7 +202,7 @@ PROCESS_THREAD(regression, ev, data) {
     static struct etimer timer;
     PROCESS_BEGIN();
 
-    etimer_set(&timer, CLOCK_CONF_SECOND * MEASUREMENTS_PER_SECOND);
+    etimer_set(&timer, CLOCK_CONF_SECOND / MEASUREMENTS_PER_SECOND);
 
     SENSORS_ACTIVATE(light_sensor);
     SENSORS_ACTIVATE(sht11_sensor);
