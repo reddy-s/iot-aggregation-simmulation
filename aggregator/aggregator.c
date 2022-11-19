@@ -69,7 +69,7 @@ void queueLightMeasurement(float item) {
         lightDao.el[x + 1] = lightDao.el[x];
     }
     lightDao.el[0] = item;
-    printf("reading = %ld.%03u\n", extractInteger(item), extractFraction(item));
+    printf("new reading = %ld.%03u\n", extractInteger(item), extractFraction(item));
     if (lightDao.size < (lightDao.capacity - 1))
         lightDao.size = lightDao.size + 1;
 }
